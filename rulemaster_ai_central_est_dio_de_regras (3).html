@@ -1,0 +1,1452 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>RuleMaster AI - Central de Regras</title>
+
+  <!-- PWA & Mobile Web App Meta Tags -->
+  <meta name="theme-color" content="#020617">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RuleMaster AI">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%23020617'/><text x='50' y='68' font-size='55' text-anchor='middle'>🎲</text></svg>">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- React 18, ReactDOM & Babel Standalone (Versões UMD 100% Compatíveis) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+
+  <style id="custom-app-styles">
+    html, body, #root {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      min-height: 100vh;
+      background-color: #020617;
+      color: #f8fafc;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Inter', sans-serif;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fadeIn {
+      animation: fadeIn 0.2s ease-out forwards;
+    }
+  </style>
+  <style id="dev-custom-css"></style>
+</head>
+<body class="antialiased selection:bg-purple-500/30">
+
+  <div id="root" class="min-h-screen"></div>
+
+  <!-- Service Worker Leve para PWA -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          self.addEventListener('install', (e) => { self.skipWaiting(); });
+          self.addEventListener('activate', (e) => { e.waitUntil(clients.claim()); });
+          self.addEventListener('fetch', (e) => { e.respondWith(fetch(e.request).catch(() => caches.match(e.request))); });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl).catch(err => console.log('SW offline ready'));
+      });
+    }
+  </script>
+
+  <!-- CÓDIGO REACT COMPLETO E AUTÔNOMO -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef, useMemo } = React;
+    const { createRoot } = ReactDOM;
+
+    // --- ÍCONES SVG LEVES E NATIVOS ---
+    const Icon = ({ name, className = "w-4 h-4" }) => {
+      const icons = {
+        search: <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />,
+        shield: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
+        key: <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />,
+        sparkles: <path d="M5 3v4M3 5h4M6 17v4M4 19h4M13 3l2.5 5.5L21 11l-5.5 2.5L13 19l-2.5-5.5L5 11l5.5-2.5z" />,
+        book: <path d="M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5A2.5 2.5 0 006.5 22H20V3H6.5A2.5 2.5 0 004 5.5v14z" />,
+        message: <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2v10z" />,
+        plus: <path d="M12 5v14M5 12h14" />,
+        trash: <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />,
+        edit: <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />,
+        check: <path d="M20 6L9 17l-5-5" />,
+        copy: <path d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />,
+        download: <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />,
+        alert: <path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />,
+        users: <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zm14 10v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />,
+        clock: <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />,
+        trophy: <path d="M8 21h8m-4-4v4m-6-8a5 5 0 0010 0V3H6v6zm-3-3h3m10 0h3" />,
+        eye: <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 15a3 3 0 100-6 3 3 0 000 6z" />,
+        eyeOff: <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22" />,
+        layout: <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />,
+        palette: <path d="M12 2a10 10 0 00-10 10c0 5.523 4.477 10 10 10a2 2 0 002-2c0-.55-.22-1.05-.59-1.41-.36-.36-.59-.86-.59-1.41 0-1.1.9-2 2-2h2.41c2.95 0 5.34-2.39 5.34-5.34 0-4.32-3.8-7.84-8.57-7.84z" />,
+        zap: <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />,
+        layers: <polygon points="12 2 2 7 12 12 22 7 12 2" />,
+        x: <path d="M18 6L6 18M6 6l12 12" />,
+        lock: <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />,
+        send: <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />,
+        bot: <rect x="3" y="11" width="18" height="10" rx="2" />,
+        video: <path d="M23 7l-7 5 7 5V7zM1 5h14v14H1z" />,
+        mic: <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />,
+        volume: <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" />,
+        cloud: <path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z" />,
+        github: <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 00-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0020 4.77 5.07 5.07 0 0019.91 1S18.73.65 16 2.48a13.38 13.38 0 00-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 005 4.77a5.44 5.44 0 00-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 009 18.13V22" />
+      };
+
+      return (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className={className}
+        >
+          {icons[name] || <circle cx="12" cy="12" r="10" />}
+        </svg>
+      );
+    };
+
+    // --- ARMAZENAMENTO LOCAL SEGURO ---
+    const safeStorage = {
+      getItem: (key) => { try { return localStorage.getItem(key); } catch (e) { return null; } },
+      setItem: (key, value) => { try { localStorage.setItem(key, value); } catch (e) {} }
+    };
+
+    // --- BANCO DE DADOS DOS 15 JOGOS COMPLETOS ---
+    const BUILTIN_GAMES = {
+      wonders_7: {
+        id: "wonders_7",
+        name: "7 Wonders",
+        category: "Draft de Cartas / Civilização",
+        icon: "🏛️",
+        players: "2-7 Jogadores",
+        duration: "30-45 min",
+        difficulty: "Médio",
+        color: "from-amber-600 via-yellow-600 to-amber-800",
+        customBadge: "Estratégia",
+        isPublished: true,
+        youtubeVideos: [{ id: "1-J_0gW2p8Y", title: "Como Jogar 7 Wonders" }],
+        objective: "Liderar uma das 7 grandes cidades da antiguidade desenvolvendo ciência, exércitos e monumentos através de 3 Eras.",
+        setup: [
+          "Distribua 1 Tabuleiro de Maravilha para cada jogador.",
+          "Prepare os baralhos das Eras I, II e III de acordo com o número de jogadores.",
+          "Cada jogador começa com 3 moedas de ouro."
+        ],
+        turnStructure: [
+          "1. Escolher uma carta da mão secretamente.",
+          "2. Executar a ação: Construir a estrutura, Construir uma etapa da Maravilha ou Descartar por 3 moedas.",
+          "3. Passar as cartas restantes para o jogador vizinho (sentido muda a cada Era)."
+        ],
+        victoryCondition: "Acumular mais pontos ao final das 3 Eras somando vitórias militares, ciência, estruturas civis e comerciais.",
+        quickCheatSheet: [
+          "Civil (Azul) = Pontos diretos • Militar (Vermelho) = Força para guerras • Ciência (Verde) = Pontos por conjuntos idênticos ou diferentes."
+        ],
+        houseRules: [
+          { id: "hr-7w1", text: "Maravilhas Sorteadas: Todos jogam obrigatoriamente com o lado B da maravilha sorteada.", active: true }
+        ],
+        faqs: [
+          { q: "Posso comprar recursos do meu vizinho?", a: "Sim, gastando 2 moedas por recurso básico. O vizinho não pode recusar a venda." }
+        ],
+        ragManualText: "7 WONDERS MANUAL: Regras completas para draft simultâneo de cartas nas Eras I, II e III."
+      },
+      war: {
+        id: "war",
+        name: "War",
+        category: "Conquista Territorial / Estratégia",
+        icon: "🪖",
+        players: "3-6 Jogadores",
+        duration: "90-180 min",
+        difficulty: "Médio",
+        color: "from-red-700 via-rose-800 to-slate-900",
+        customBadge: "Clássico",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Cumprir secretamente o objetivo sorteado na carta de missão ou conquistar 24 territórios.",
+        setup: [
+          "Sorteie e distribua as cartas de território para ocupar o mapa.",
+          "Distribua secretamente 1 carta de Objetivo para cada jogador.",
+          "Coloque os exércitos iniciais nos territórios sorteados."
+        ],
+        turnStructure: [
+          "1. Receber novos exércitos (Total de territórios / 2 + Bônus de continentes).",
+          "2. Atacar territórios vizinhos rolando dados contra o defensor.",
+          "3. Deslocar exércitos entre territórios contíguos do mesmo dono."
+        ],
+        victoryCondition: "Concluir 100% dos requisitos descritos na sua carta de objetivo secreta.",
+        quickCheatSheet: [
+          "Atacante = Dados Vermelhos (Máx 3) • Defensor = Dados Amarelos (Máx 3) • Empates no dado favorecem SEMPRE o DEFENSOR!"
+        ],
+        houseRules: [
+          { id: "hr-war1", text: "Troca Crescente: Trocas de cartas valem exércitos crescentes (4, 6, 8, 10...).", active: true }
+        ],
+        faqs: [
+          { q: "O que acontece ao eliminar um jogador?", a: "Você toma posse de todas as cartas de território do jogador eliminado." }
+        ],
+        ragManualText: "WAR MANUAL: Regras do clássico de estratégia territorial com dados e objetivos secretos."
+      },
+      trio: {
+        id: "trio",
+        name: "Trio",
+        category: "Dedução / Memória / Cartas",
+        icon: "🔢",
+        players: "3-6 Jogadores",
+        duration: "15 min",
+        difficulty: "Fácil",
+        color: "from-blue-500 via-indigo-600 to-purple-700",
+        customBadge: "Party Game",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Encontrar 3 cartas de números idênticos (um Trio) revelando cartas da mesa ou das mãos dos jogadores.",
+        setup: [
+          "Embaralhe o baralho de números de 1 a 12. Distribua cartas aos jogadores e coloque o restante virado para baixo no centro."
+        ],
+        turnStructure: [
+          "1. Revele uma carta do centro DA MESA OU peça a um jogador para revelar sua carta MAIS BAIXA ou MAIS ALTA.",
+          "2. Repita o processo até revelar 3 cartas idênticas ou falhar.",
+          "3. Se falhar, todas as cartas reveladas retornam aos locais originais."
+        ],
+        victoryCondition: "Conseguir 3 Trios de cartas ou formar o Trio especial do número 7.",
+        quickCheatSheet: [
+          "Atenção: Jogadores NUNCA podem mostrar cartas do meio da mão, apenas a MENOR ou a MAIOR!"
+        ],
+        houseRules: [],
+        faqs: [
+          { q: "Posso pedir para olhar a menor carta da minha própria mão?", a: "Sim! Você pode revelar da sua própria mão ou da mão de qualquer oponente." }
+        ],
+        ragManualText: "TRIO MANUAL: Jogo de dedução e memória simples focado em encontrar 3 números iguais."
+      },
+      taco_gato: {
+        id: "taco_gato",
+        name: "Taco Gato Cabra Queijo Pizza",
+        category: "Agilidade / Reflexo",
+        icon: "🌮",
+        players: "2-8 Jogadores",
+        duration: "10-15 min",
+        difficulty: "Muito Fácil",
+        color: "from-pink-500 via-rose-600 to-amber-600",
+        customBadge: "Diversão",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Livrar-se de todas as suas cartas dizendo a sequência correta e batendo no monte central.",
+        setup: [
+          "Distribua todas as cartas igualmente entre os jogadores viradas para baixo."
+        ],
+        turnStructure: [
+          "1. Cada jogador joga uma carta no centro dizendo em ordem: 'Taco', 'Gato', 'Cabra', 'Queijo', 'Pizza'...",
+          "2. Quando a carta jogada bater EXATAMENTE com a palavra dita, TODOS batem a mão no monte!",
+          "3. O último a bater pega o monte inteiro de cartas."
+        ],
+        victoryCondition: "Ficar sem cartas na mão E ser o primeiro a bater no monte em uma combinação correta.",
+        quickCheatSheet: [
+          "Gorila = Bata no peito • Narval = Faça chifre na cabeça • Marmota = Bata na mesa antes!"
+        ],
+        houseRules: [],
+        faqs: [
+          { q: "E se alguém hesitar ou fizer um gesto falso?", a: "Recebe todas as cartas do monte acumulado imediatamente!" }
+        ],
+        ragManualText: "TACO GATO MANUAL: Regras de reação e reflexo com penalidades para gestos falsos."
+      },
+      azul_mini: {
+        id: "azul_mini",
+        name: "Azul Mini",
+        category: "Abstração / Padrões",
+        icon: "🧱",
+        players: "2-4 Jogadores",
+        duration: "30-45 min",
+        difficulty: "Fácil / Médio",
+        color: "from-cyan-600 via-blue-600 to-teal-800",
+        customBadge: "Portátil",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Decorar as paredes do Palácio Real de Évora com azulejos portugueses acumulando mais pontos.",
+        setup: [
+          "Coloque os expositores no centro e preencha cada um com 4 azulejos do saco."
+        ],
+        turnStructure: [
+          "1. Escolher azulejos de uma cor em uma Fábrica e colocar o restante no centro.",
+          "2. Acomodar os azulejos nas linhas de padrão do seu tabuleiro.",
+          "3. Ao completar a linha, mova 1 azulejo para a parede e pontue conexões."
+        ],
+        victoryCondition: "Maior pontuação quando um jogador completar pelo menos uma linha horizontal na parede.",
+        quickCheatSheet: [
+          "Sobra de azulejos vai para o chão e dá PONTOS NEGATIVOS! Planeje com cuidado."
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "AZUL MINI MANUAL: Adaptação portátil do aclamado jogo de posicionamento de padrões."
+      },
+      coup: {
+        id: "coup",
+        name: "Coup",
+        category: "Bluff / Dedução",
+        icon: "🗡️",
+        players: "2-6 Jogadores",
+        duration: "15 min",
+        difficulty: "Fácil",
+        color: "from-red-600 via-rose-700 to-amber-800",
+        customBadge: "Partida Rápida",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Eliminar a influência de todos os outros jogadores e ser o único sobrevivente na mesa.",
+        setup: [
+          "Cada jogador recebe 2 moedas e 2 cartas de personagem viradas para baixo (sua influência)."
+        ],
+        turnStructure: [
+          "Escolha UMA ação no seu turno (pode mentir sobre a carta que possui!):",
+          "- Renda (+1 moeda) • Ajuda Externa (+2 moedas) • Coup (paga 7 moedas e mata 1 carta).",
+          "- Personagens: Duque (+3 moedas), Capitão (Rouba 2 moedas), Assassino (paga 3 moedas e mata 1 carta), Contessa (bloqueia assassinato)."
+        ],
+        victoryCondition: "Ser o último jogador na mesa com pelo menos 1 carta viva.",
+        quickCheatSheet: [
+          "Com 10 moedas ou mais no início do turno, a ação de COUP é OBRIGATÓRIA!"
+        ],
+        houseRules: [],
+        faqs: [
+          { q: "Se eu for desafiado e provar que tinha a carta?", a: "Mostre a carta, embaralhe no monte, compre uma nova e quem desafiou perde 1 carta." }
+        ],
+        ragManualText: "COUP MANUAL: Regras completas de traição, mentira e blefe em um governo totalitário futurista."
+      },
+      hamburgueria: {
+        id: "hamburgueria",
+        name: "Hamburgueria Maluca",
+        category: "Família / Infantil",
+        icon: "🍔",
+        players: "2-4 Jogadores",
+        duration: "20-30 min",
+        difficulty: "Muito Fácil",
+        color: "from-amber-500 via-yellow-600 to-red-600",
+        customBadge: "Clássico Estrela",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Montar o seu hambúrguer completo primeiro coletando todos os ingredientes na lanchonete.",
+        setup: [
+          "Coloque as fichas de ingredientes nas casas correspondentes do tabuleiro.",
+          "Cada jogador escolhe um peão e posiciona no início."
+        ],
+        turnStructure: [
+          "1. Role o dado e avance as casas na lanchonete.",
+          "2. Pegue o ingrediente da casa onde parou se você ainda não o tiver no seu prato.",
+          "3. Cuidado com casas de 'Mosca' que fazem perder ingredientes!"
+        ],
+        victoryCondition: "Completar o prato com os 5 ingredientes do hambúrguer e retornar ao início.",
+        quickCheatSheet: [
+          "Pão + Carne + Queijo + Alface + Tomate = Hambúrguer Pronto!"
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "HAMBURGUERIA MALUCA MANUAL: Clássico infantil brasileiro de coleta de ingredientes."
+      },
+      istanbul: {
+        id: "istanbul",
+        name: "Istanbul",
+        category: "Movimento de Trabalhadores",
+        icon: "🕌",
+        players: "2-5 Jogadores",
+        duration: "40-60 min",
+        difficulty: "Médio",
+        color: "from-amber-700 via-orange-800 to-yellow-700",
+        customBadge: "Euro",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Mover seu Mercador e Assistentes pelo bazar de Istambul para coletar e trocar mercadorias por Rubis.",
+        setup: [
+          "Organize os 16 locais em uma grade 4x4. Cada jogador coloca seu Mercador e 4 Assistentes na Fonte."
+        ],
+        turnStructure: [
+          "1. Mover o Mercador até 2 casas.",
+          "2. Deixar ou resgatar um Assistente no local para executar a ação da casa.",
+          "3. Pagar 2 Liras caso encontre outros mercadores no mesmo local."
+        ],
+        victoryCondition: "Ser o primeiro jogador a coletar 5 Rubis no seu carrinho.",
+        quickCheatSheet: [
+          "Sem assistentes junto do seu mercador, você NÃO pode realizar ações nos locais!"
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "ISTANBUL MANUAL: Corrida pelo bazar para adquirir rubis otimizando trajetos de assistentes."
+      },
+      camel_up: {
+        id: "camel_up",
+        name: "Camel Up Card Game",
+        category: "Apostas / Corrida",
+        icon: "🐪",
+        players: "2-6 Jogadores",
+        duration: "30 min",
+        difficulty: "Fácil",
+        color: "from-yellow-600 via-amber-600 to-orange-700",
+        customBadge: "Apostas",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Apostar nos camelos certos para enriquecer na corrida do deserto.",
+        setup: [
+          "Monte a pista de corrida e posicione os 5 camelos sorteados. Distribua cartas de aposta."
+        ],
+        turnStructure: [
+          "No seu turno, escolha 1 ação:",
+          "1. Jogar carta para avançar o camelo (camelo no topo carrega os de baixo!).",
+          "2. Pegar uma ficha de aposta para a etapa da corrida.",
+          "3. Apostar no vencedor final da corrida."
+        ],
+        victoryCondition: "Acumular mais moedas no final de todas as etapas.",
+        quickCheatSheet: [
+          "Camelos no mesmo espaço se empilham! O camelo que fica no topo está à frente na corrida."
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "CAMEL UP CARD GAME: Adaptação em cartas do divertido jogo de apostas de corrida de camelos."
+      },
+      clue: {
+        id: "clue",
+        name: "Clue (Detetive)",
+        category: "Dedução / Investigação",
+        icon: "🔍",
+        players: "2-6 Jogadores",
+        duration: "45 min",
+        difficulty: "Fácil / Médio",
+        color: "from-slate-800 via-indigo-950 to-purple-950",
+        customBadge: "Investigação",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Descobrir o Assassino, a Arma e o Local do crime por eliminação de pistas.",
+        setup: [
+          "Separe 1 Suspeito, 1 Arma e 1 Cômodo secretamente dentro do Envelope do Crime.",
+          "Distribua as demais cartas igualmente entre os jogadores."
+        ],
+        turnStructure: [
+          "1. Mover seu peão pela mansão rolando os dados.",
+          "2. Ao entrar em um cômodo, faça uma Palpite (Ex: 'Acho que foi o Sr. Marinho na Cozinha com o Candelabro').",
+          "3. O jogador à esquerda deve mostrar 1 carta que desminta seu palpite, se tiver."
+        ],
+        victoryCondition: "Fazer uma Acusação Final correta no centro do tabuleiro.",
+        quickCheatSheet: [
+          "Errou a acusação final? Você é eliminado do jogo e só pode mostrar cartas para os outros!"
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "DETETIVE / CLUE MANUAL: Regras clássicas de investigação por eliminação de pistas."
+      },
+      speed_cups: {
+        id: "speed_cups",
+        name: "Speed Cups",
+        category: "Agilidade / Velocidade",
+        icon: "🥤",
+        players: "2-4 Jogadores",
+        duration: "10-15 min",
+        difficulty: "Muito Fácil",
+        color: "from-red-500 via-yellow-500 to-blue-600",
+        customBadge: "Infantil",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Empilhar ou alinhar seus 5 copos coloridos na ordem exata mostrada na carta antes dos rivais.",
+        setup: [
+          "Cada jogador recebe 5 copos (Verde, Vermelho, Amarelo, Azul, Preto). Coloque a campainha no centro."
+        ],
+        turnStructure: [
+          "1. Revele a carta de desafio do topo.",
+          "2. Organize seus copos na ORDEM VERTICAL (empilhados) ou HORIZONTAL (lado a lado).",
+          "3. Bata na campainha assim que terminar!"
+        ],
+        victoryCondition: "Quem bater a campainha primeiro com a ordem correta ganha a carta. Mais cartas vence!",
+        quickCheatSheet: [
+          "Atenção na orientação: Coisas em cima de outras = empilhar; Coisas lado a lado = alinhar!"
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "SPEED CUPS MANUAL: Jogo de reflexo rápido e montagem de sequências coloridas."
+      },
+      dixit: {
+        id: "dixit",
+        name: "Dixit",
+        category: "Criatividade / Imagem",
+        icon: "🎨",
+        players: "3-6 Jogadores",
+        duration: "30 min",
+        difficulty: "Muito Fácil",
+        color: "from-pink-500 via-purple-600 to-indigo-600",
+        customBadge: "Familiar",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Pontuar adivinhando a carta correta do Contador de Histórias através de pistas poéticas e enigmáticas.",
+        setup: [
+          "Cada jogador recebe 6 cartas ilustradas e seu conjunto de fichas de votação."
+        ],
+        turnStructure: [
+          "1. O Contador escolhe 1 carta e diz uma frase, som ou palavra misteriosa.",
+          "2. Os outros escolhem 1 carta da própria mão que combine com a frase dita.",
+          "3. Embaralhe as cartas, revele-as e vote secretamente na carta do Contador."
+        ],
+        victoryCondition: "Atingir 30 pontos na trilha.",
+        quickCheatSheet: [
+          "Se TODOS ou NINGUÉM acertar, o Contador ganha 0 pts e os outros ganham 2 pts. A dica deve ser sutil!"
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "DIXIT MANUAL: Regras do clássico jogo de imaginação e associação de imagens."
+      },
+      the_mind: {
+        id: "the_mind",
+        name: "The Mind",
+        category: "Cooperativo / Sincronia",
+        icon: "🧠",
+        players: "2-4 Jogadores",
+        duration: "15-20 min",
+        difficulty: "Fácil / Desafiador",
+        color: "from-teal-600 via-slate-800 to-zinc-950",
+        customBadge: "Cooperativo",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Jogar todas as cartas da equipe em ordem crescente de 1 a 100 SEM COMUNICAR uma única palavra ou gesto.",
+        setup: [
+          "Distribua cartas de acordo com o nível da rodada (Nível 1 = 1 carta para cada)."
+        ],
+        turnStructure: [
+          "1. Todos os jogadores concentram-se em silêncio absoluto.",
+          "2. Qualquer um pode baixar uma carta na mesa quando SENTIR que é a hora correta.",
+          "3. Se alguém jogar uma carta maior que alguma carta ainda na mão de outro jogador, a equipe PERDE 1 VIDA!"
+        ],
+        victoryCondition: "Vencer todos os Níveis da partida em equipe.",
+        quickCheatSheet: [
+          "Use a Shuriken para todos descartarem secretamente sua menor carta quando a equipe estiver em dúvida!"
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "THE MIND MANUAL: Jogo cooperativo de pura percepção temporal e sintonia entre os jogadores."
+      },
+      dobble: {
+        id: "dobble",
+        name: "Dobble / Aposta",
+        category: "Percepção Visual",
+        icon: "👁️",
+        players: "2-8 Jogadores",
+        duration: "10 min",
+        difficulty: "Muito Fácil",
+        color: "from-yellow-500 via-amber-500 to-purple-700",
+        customBadge: "Rapidez",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Encontrar o ÚNICO símbolo idêntico entre duas cartas antes dos seus oponentes.",
+        setup: [
+          "Distribua 1 carta virada para baixo para cada um e coloque a pilha no centro."
+        ],
+        turnStructure: [
+          "1. Revele a carta central.",
+          "2. Localize o símbolo idêntico entre sua carta e a do centro e fale o nome em voz alta!",
+          "3. Pegue a carta do centro para você."
+        ],
+        victoryCondition: "Acumular mais cartas quando o monte central acabar.",
+        quickCheatSheet: [
+          "Existe SEMPRE exatamente 1 símbolo em comum entre quaisquer 2 cartas do jogo!"
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "DOBBLE / APOSTA MANUAL: Regras de observação rápida e comparação de ícones combinatórios."
+      },
+      quem_foi: {
+        id: "quem_foi",
+        name: "Quem Foi?",
+        category: "Memória / Reação",
+        icon: "💩",
+        players: "3-6 Jogadores",
+        duration: "15 min",
+        difficulty: "Muito Fácil",
+        color: "from-amber-700 via-amber-800 to-stone-900",
+        customBadge: "Engraçado",
+        isPublished: true,
+        youtubeVideos: [],
+        objective: "Defender seus bichinhos de estimação e culpar o animal de outro jogador pelo cocô no meio da sala!",
+        setup: [
+          "Cada jogador recebe 6 cartas de animais da mesma cor."
+        ],
+        turnStructure: [
+          "1. O primeiro jogador baixa uma carta e diz: 'Não foi meu Gato que fez cocô na sala, foi o COELHO!'.",
+          "2. Todos tentam baixar a carta do Coelho o mais rápido possível.",
+          "3. O primeiro a baixar limpa a barra do seu Coelho e culpa outro bichinho!"
+        ],
+        victoryCondition: "Terminar a partida com a menor quantidade de fichas de cocô.",
+        quickCheatSheet: [
+          "Se você culpar um animal que NINGUÉM mais tem na mão, seu animal assume a culpa e você ganha 1 cocô!"
+        ],
+        houseRules: [],
+        faqs: [],
+        ragManualText: "QUEM FOI? MANUAL: Jogo de memória e reação ágil sobre animais de estimação."
+      }
+    };
+
+    // TEMAS PREDEFINIDOS
+    const THEME_PRESETS = {
+      obsidian: { name: "Obsidian Cyber", bg: "#020617", cardBg: "#0f172a", border: "#1e293b", text: "#f8fafc", accent: "#9333ea" },
+      rpg_parchment: { name: "RPG Pergaminho", bg: "#1c1917", cardBg: "#292524", border: "#44403c", text: "#f5f5f4", accent: "#d97706" },
+      neon_arcade: { name: "Neon Arcade", bg: "#050505", cardBg: "#121212", border: "#27272a", text: "#ffffff", accent: "#ec4899" },
+      emerald_table: { name: "Verde Feltro", bg: "#022c22", cardBg: "#064e3b", border: "#047857", text: "#ecfdf5", accent: "#10b981" },
+      midnight_navy: { name: "Midnight Navy", bg: "#030712", cardBg: "#111827", border: "#1f2937", text: "#f9fafb", accent: "#3b82f6" }
+    };
+
+    const DEFAULT_CONFIG = {
+      appTitle: "RuleMaster AI",
+      appSubtitle: "Central & Estúdio de Regras de Jogos de Tabuleiro",
+      logoIcon: "🎲",
+      geminiApiKey: "",
+      themePreset: "obsidian",
+      customBgColor: "#020617",
+      customCardBgColor: "#0f172a",
+      customBorderColor: "#1e293b",
+      customTextColor: "#f8fafc",
+      customAccentColor: "#9333ea",
+      footerText: "RuleMaster AI © 2026 • Publicado no GitHub Pages",
+      welcomeBanner: {
+        enabled: true,
+        title: "Bem-vindo à Mesa de Jogos!",
+        text: "Escolha qualquer um dos 15 jogos abaixo para ver as regras ou converse com o Juiz Virtual por texto ou voz!"
+      },
+      aiPersona: {
+        name: "Juiz Virtual Supremo",
+        style: "Imparcial, didático e especialista em manuais de jogos.",
+        rigorTone: "Didático e Amigável"
+      }
+    };
+
+    function App() {
+      // ESTADOS PRINCIPAIS
+      const [appMode, setAppMode] = useState("player");
+      const [devPassword, setDevPassword] = useState(() => safeStorage.getItem("ruleMaster_dev_password") || "0000");
+      const [isDevAuthenticated, setIsDevAuthenticated] = useState(false);
+      const [showPasswordModal, setShowPasswordModal] = useState(false);
+      const [enteredPassword, setEnteredPassword] = useState("");
+      const [passwordError, setPasswordError] = useState("");
+
+      const [appConfig, setAppConfig] = useState(() => {
+        const saved = safeStorage.getItem("ruleMaster_config");
+        return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
+      });
+
+      const [games, setGames] = useState(() => {
+        const saved = safeStorage.getItem("ruleMaster_games");
+        return saved ? JSON.parse(saved) : BUILTIN_GAMES;
+      });
+
+      const [selectedGameKey, setSelectedGameKey] = useState("wonders_7");
+      const selectedGame = games[selectedGameKey] || Object.values(games)[0] || BUILTIN_GAMES.wonders_7;
+
+      // NAVEGAÇÃO
+      const [playerTab, setPlayerTab] = useState("overview");
+      const [devTab, setDevTab] = useState("add_game_manual");
+      const [playerSearchQuery, setPlayerSearchQuery] = useState("");
+
+      // FORMULÁRIO DE CADASTRO MANUAL
+      const [manualForm, setManualForm] = useState({
+        name: "", category: "Tabuleiro", icon: "🎲", players: "2-4 Jogadores",
+        duration: "30 min", difficulty: "Médio", color: "from-purple-600 to-indigo-700",
+        objective: "", victoryCondition: "", setupText: "", turnText: "", cheatText: "", ragManualText: ""
+      });
+
+      // CHAT JUIZ & VOZ
+      const [chatMessages, setChatMessages] = useState([
+        { role: "assistant", text: "Olá! Sou o Juiz Virtual da Mesa. Qual a sua dúvida sobre as regras do jogo atual?" }
+      ]);
+      const [inputMessage, setInputMessage] = useState("");
+      const [isAiThinking, setIsAiThinking] = useState(false);
+      const [isListening, setIsListening] = useState(false);
+      const [isVoiceEnabled, setIsVoiceEnabled] = useState(true);
+      const chatEndRef = useRef(null);
+
+      // EDITOR DEV
+      const [editingGameKey, setEditingGameKey] = useState("wonders_7");
+      const editingGame = games[editingGameKey] || selectedGame;
+
+      // MODAL DELEÇÃO
+      const [deleteModalGameKey, setDeleteModalGameKey] = useState(null);
+
+      // NOVO VÍDEO
+      const [newVideoTitle, setNewVideoTitle] = useState("");
+      const [newVideoUrl, setNewVideoUrl] = useState("");
+
+      // NOTIFICAÇÃO TOAST
+      const [toastMsg, setToastMsg] = useState("");
+      const showNotification = (msg) => {
+        setToastMsg(msg);
+        setTimeout(() => setToastMsg(""), 3500);
+      };
+
+      useEffect(() => { safeStorage.setItem("ruleMaster_config", JSON.stringify(appConfig)); }, [appConfig]);
+      useEffect(() => { safeStorage.setItem("ruleMaster_games", JSON.stringify(games)); }, [games]);
+      useEffect(() => { safeStorage.setItem("ruleMaster_dev_password", devPassword); }, [devPassword]);
+
+      useEffect(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, [chatMessages, isAiThinking]);
+
+      // VOZ (SINTETIZADOR & RECONHECIMENTO NATIVO)
+      const speakText = (text) => {
+        if (!isVoiceEnabled || !('speechSynthesis' in window)) return;
+        try {
+          window.speechSynthesis.cancel();
+          const cleanText = text.replace(/[*#_~`]/g, '');
+          const utterance = new SpeechSynthesisUtterance(cleanText);
+          utterance.lang = 'pt-BR';
+          utterance.rate = 1.05;
+          window.speechSynthesis.speak(utterance);
+        } catch (e) {}
+      };
+
+      const startListening = () => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          showNotification("Ditado por voz não suportado neste navegador.");
+          return;
+        }
+        try {
+          const recognition = new SpeechRecognition();
+          recognition.lang = 'pt-BR';
+          recognition.onstart = () => setIsListening(true);
+          recognition.onresult = (e) => {
+            setInputMessage(e.results[0][0].transcript);
+            setIsListening(false);
+          };
+          recognition.onerror = () => setIsListening(false);
+          recognition.onend = () => setIsListening(false);
+          recognition.start();
+        } catch (err) {
+          setIsListening(false);
+        }
+      };
+
+      // CADASTRO MANUAL DE NOVO JOGO
+      const handleCreateManualGame = (e) => {
+        e.preventDefault();
+        if (!manualForm.name.trim()) return;
+
+        const newKey = `game_${Date.now()}`;
+        const newRecord = {
+          id: newKey,
+          name: manualForm.name.trim(),
+          category: manualForm.category || "Tabuleiro",
+          icon: manualForm.icon || "🎲",
+          players: manualForm.players || "2-4 Jogadores",
+          duration: manualForm.duration || "30 min",
+          difficulty: manualForm.difficulty || "Médio",
+          color: manualForm.color || "from-purple-600 to-indigo-700",
+          isPublished: true,
+          objective: manualForm.objective || "Objetivo do jogo.",
+          victoryCondition: manualForm.victoryCondition || "Como vencer a partida.",
+          setup: manualForm.setupText ? manualForm.setupText.split("\n").filter(Boolean) : ["Preparação básica."],
+          turnStructure: manualForm.turnText ? manualForm.turnText.split("\n").filter(Boolean) : ["Executar ações do turno."],
+          quickCheatSheet: manualForm.cheatText ? manualForm.cheatText.split("\n").filter(Boolean) : ["Regra rápida."],
+          houseRules: [],
+          faqs: [],
+          youtubeVideos: [],
+          ragManualText: manualForm.ragManualText || `Manual do jogo ${manualForm.name}.`
+        };
+
+        const updated = { ...games, [newKey]: newRecord };
+        setGames(updated);
+        setSelectedGameKey(newKey);
+        setEditingGameKey(newKey);
+
+        setManualForm({
+          name: "", category: "Tabuleiro", icon: "🎲", players: "2-4 Jogadores",
+          duration: "30 min", difficulty: "Médio", color: "from-purple-600 to-indigo-700",
+          objective: "", victoryCondition: "", setupText: "", turnText: "", cheatText: "", ragManualText: ""
+        });
+
+        showNotification(`🎉 Jogo "${newRecord.name}" adicionado com sucesso!`);
+      };
+
+      // RESPOSTA DO JUIZ VIRTUAL
+      const handleSendMessage = async (e) => {
+        e.preventDefault();
+        if (!inputMessage.trim() || isAiThinking) return;
+
+        const userQuery = inputMessage;
+        setInputMessage("");
+        const newHistory = [...chatMessages, { role: "user", text: userQuery }];
+        setChatMessages(newHistory);
+        setIsAiThinking(true);
+
+        setTimeout(() => {
+          let replyText = "";
+          const queryLower = userQuery.toLowerCase();
+          
+          if (queryLower.includes("vencer") || queryLower.includes("vitoria") || queryLower.includes("pontos")) {
+            replyText = `Para vencer em **${selectedGame.name}**: ${selectedGame.victoryCondition}`;
+          } else if (queryLower.includes("setup") || queryLower.includes("prepara") || queryLower.includes("iniciar")) {
+            replyText = `Preparação de **${selectedGame.name}**: ${selectedGame.setup ? selectedGame.setup.join(" ") : "Siga as instruções padrão."}`;
+          } else {
+            replyText = `Consulta sobre **${selectedGame.name}**: Conforme o manual oficial, ${selectedGame.objective} Recomendo verificar os lembretes rápidos da aba 'Visão Geral'.`;
+          }
+
+          setChatMessages(prev => [...prev, { role: "assistant", text: replyText }]);
+          speakText(replyText);
+          setIsAiThinking(false);
+        }, 600);
+      };
+
+      // VÍDEOS YOUTUBE
+      const handleAddVideo = () => {
+        if (!newVideoUrl.trim()) return;
+        let vidId = newVideoUrl.trim();
+        if (vidId.includes("youtu.be/")) vidId = vidId.split("youtu.be/")[1].split("?")[0];
+        else if (vidId.includes("v=")) vidId = vidId.split("v=")[1].split("&")[0];
+
+        const currentVids = editingGame.youtubeVideos || [];
+        const updatedVids = [...currentVids, { id: vidId, title: newVideoTitle.trim() || `Vídeo ${currentVids.length + 1}` }];
+
+        setGames({ ...games, [editingGameKey]: { ...editingGame, youtubeVideos: updatedVids } });
+        setNewVideoTitle("");
+        setNewVideoUrl("");
+        showNotification("Vídeo anexado!");
+      };
+
+      const publishedGamesKeys = useMemo(() => {
+        return Object.keys(games).filter(k => {
+          const g = games[k];
+          if (g.isPublished === false) return false;
+          if (!playerSearchQuery) return true;
+          return g.name.toLowerCase().includes(playerSearchQuery.toLowerCase()) || g.category.toLowerCase().includes(playerSearchQuery.toLowerCase());
+        });
+      }, [games, playerSearchQuery]);
+
+      const cardStyle = {
+        backgroundColor: appConfig.customCardBgColor,
+        borderColor: appConfig.customBorderColor,
+        color: appConfig.customTextColor
+      };
+
+      const accentBgStyle = {
+        backgroundColor: appConfig.customAccentColor
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col" style={{ backgroundColor: appConfig.customBgColor, color: appConfig.customTextColor }}>
+
+          {/* TOAST NOTIFICAÇÃO */}
+          {toastMsg && (
+            <div className="fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl bg-slate-900 border border-purple-500/40 text-white text-xs font-bold shadow-2xl flex items-center gap-2 animate-fadeIn">
+              <Icon name="sparkles" className="w-4 h-4 text-purple-400" />
+              <span>{toastMsg}</span>
+            </div>
+          )}
+
+          {/* MODAL CONFIRMAÇÃO DE DELEÇÃO */}
+          {deleteModalGameKey && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+              <div className="p-6 rounded-3xl max-w-md w-full border shadow-2xl space-y-4" style={cardStyle}>
+                <div className="flex items-center gap-3 text-rose-400 border-b pb-3" style={{ borderColor: appConfig.customBorderColor }}>
+                  <Icon name="alert" className="w-6 h-6" />
+                  <h3 className="text-base font-bold text-white">Excluir Jogo do Catálogo</h3>
+                </div>
+                <p className="text-xs text-slate-300">
+                  Tem certeza de que deseja remover <strong className="text-white">{games[deleteModalGameKey]?.name}</strong>?
+                </p>
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button onClick={() => setDeleteModalGameKey(null)} className="px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white">Cancelar</button>
+                  <button
+                    onClick={() => {
+                      const copy = { ...games };
+                      delete copy[deleteModalGameKey];
+                      setGames(copy);
+                      const remaining = Object.keys(copy);
+                      if (remaining.length > 0) {
+                        setEditingGameKey(remaining[0]);
+                        if (selectedGameKey === deleteModalGameKey) setSelectedGameKey(remaining[0]);
+                      }
+                      setDeleteModalGameKey(null);
+                      showNotification("Jogo removido!");
+                    }}
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 text-white shadow-lg"
+                  >
+                    Confirmar Exclusão
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CABEÇALHO */}
+          <header className="border-b sticky top-0 z-40 backdrop-blur-md" style={{ backgroundColor: `${appConfig.customBgColor}ee`, borderColor: appConfig.customBorderColor }}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl p-2 rounded-2xl border" style={{ backgroundColor: appConfig.customCardBgColor, borderColor: appConfig.customBorderColor }}>
+                  {appConfig.logoIcon}
+                </span>
+                <div>
+                  <h1 className="text-base font-black tracking-wide text-white flex items-center gap-2">
+                    {appConfig.appTitle}
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center gap-1">
+                      <Icon name="cloud" className="w-3 h-3 text-emerald-400" />
+                      {publishedGamesKeys.length} Jogos na Estante
+                    </span>
+                  </h1>
+                  <p className="text-xs text-slate-400 hidden sm:block">{appConfig.appSubtitle}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-1 rounded-2xl border" style={{ backgroundColor: appConfig.customCardBgColor, borderColor: appConfig.customBorderColor }}>
+                <button
+                  onClick={() => setAppMode("player")}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${appMode === "player" ? "text-white shadow-lg" : "text-slate-400"}`}
+                  style={appMode === "player" ? accentBgStyle : {}}
+                >
+                  <Icon name="users" className="w-3.5 h-3.5" /> <span>Jogadores</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (isDevAuthenticated) setAppMode("dev");
+                    else { setEnteredPassword(""); setPasswordError(""); setShowPasswordModal(true); }
+                  }}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${appMode === "dev" ? "bg-amber-600 text-white shadow-lg" : "text-slate-400"}`}
+                >
+                  <Icon name="shield" className="w-3.5 h-3.5" /> <span>Painel Dev</span>
+                  {!isDevAuthenticated && <Icon name="lock" className="w-3 h-3 text-amber-400" />}
+                </button>
+              </div>
+            </div>
+          </header>
+
+          {/* MODAL SENHA DEV */}
+          {showPasswordModal && (
+            <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+              <div className="p-6 rounded-3xl max-w-md w-full border shadow-2xl space-y-4" style={cardStyle}>
+                <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: appConfig.customBorderColor }}>
+                  <div className="flex items-center gap-2.5">
+                    <Icon name="key" className="w-5 h-5 text-amber-400" />
+                    <h3 className="text-base font-bold text-white">Acesso do Desenvolvedor</h3>
+                  </div>
+                  <button onClick={() => setShowPasswordModal(false)} className="text-slate-400 hover:text-white"><Icon name="x" className="w-5 h-5" /></button>
+                </div>
+
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  if (enteredPassword === devPassword) { setIsDevAuthenticated(true); setShowPasswordModal(false); setAppMode("dev"); }
+                  else setPasswordError("Senha incorreta. Padrão: 0000");
+                }} className="space-y-4">
+                  <div>
+                    <label className="text-xs font-bold text-slate-300 block mb-1">Senha Dev</label>
+                    <input
+                      type="password"
+                      value={enteredPassword}
+                      onChange={(e) => setEnteredPassword(e.target.value)}
+                      placeholder="Senha (Padrão: 0000)"
+                      autoFocus
+                      className="w-full border rounded-xl px-4 py-3 text-sm text-white focus:outline-none"
+                      style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }}
+                    />
+                    {passwordError && <p className="text-xs text-rose-400 mt-2">{passwordError}</p>}
+                  </div>
+                  <button type="submit" className="w-full py-2.5 rounded-xl text-xs font-bold bg-amber-600 text-white shadow-lg">Entrar</button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {/* CONTEÚDO PRINCIPAL */}
+          <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+            {/* MODO JOGADOR */}
+            {appMode === "player" && (
+              <div className="space-y-6">
+
+                {/* BANNER DE BOAS-VINDAS */}
+                {appConfig.welcomeBanner.enabled && (
+                  <div className="p-5 rounded-3xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl" style={cardStyle}>
+                    <div className="space-y-1">
+                      <h2 className="text-base font-extrabold text-amber-300 flex items-center gap-2">
+                        <Icon name="sparkles" className="w-5 h-5 text-amber-400" /> {appConfig.welcomeBanner.title}
+                      </h2>
+                      <p className="text-xs text-slate-300 max-w-2xl">{appConfig.welcomeBanner.text}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* BARRA DE PESQUISA & ESTANTE DE JOGOS */}
+                <div className="p-4 rounded-3xl border space-y-3" style={cardStyle}>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="🔍 Filtrar entre os 15 jogos da estante..."
+                      value={playerSearchQuery}
+                      onChange={(e) => setPlayerSearchQuery(e.target.value)}
+                      className="w-full border rounded-xl pl-9 pr-4 py-2.5 text-xs text-white focus:outline-none"
+                      style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }}
+                    />
+                    <Icon name="search" className="w-4 h-4 text-slate-500 absolute left-3 top-3" />
+                  </div>
+
+                  <div className="flex items-center gap-2 overflow-x-auto pt-1 pb-1">
+                    {publishedGamesKeys.map(key => {
+                      const g = games[key];
+                      const isSel = selectedGameKey === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => { setSelectedGameKey(key); setChatMessages([{ role: "assistant", text: `Consultando regras de **${g.name}**.` }]); }}
+                          className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border shrink-0 ${isSel ? "text-white shadow-lg scale-105" : "text-slate-400"}`}
+                          style={isSel ? accentBgStyle : { backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }}
+                        >
+                          <span>{g.icon || "🎲"}</span>
+                          <span>{g.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ABAS DO JOGADOR */}
+                <div className="flex items-center gap-2 border-b pb-2 overflow-x-auto" style={{ borderColor: appConfig.customBorderColor }}>
+                  {[
+                    { id: "overview", label: "Visão Geral", icon: "book" },
+                    { id: "setup", label: "Setup & Turno", icon: "layers" },
+                    { id: "faqs", label: "FAQs", icon: "alert" },
+                    { id: "referee", label: "Juiz IA (Voz)", icon: "message" },
+                    { id: "videos", label: "Vídeos & Tutoriais", icon: "video" }
+                  ].map(tab => {
+                    const active = playerTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        onClick={() => setPlayerTab(tab.id)}
+                        className={`px-4 py-2 text-xs font-bold flex items-center gap-2 border-b-2 shrink-0 ${active ? "border-amber-400 text-amber-400" : "border-transparent text-slate-400"}`}
+                      >
+                        <Icon name={tab.icon} className="w-4 h-4" />
+                        <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* VISÃO GERAL */}
+                {playerTab === "overview" && selectedGame && (
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="p-6 rounded-3xl border space-y-4 shadow-2xl" style={cardStyle}>
+                        <div className="flex items-center gap-4">
+                          <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${selectedGame.color || "from-purple-600 to-indigo-700"} flex items-center justify-center text-3xl shadow-lg shrink-0`}>
+                            {selectedGame.icon}
+                          </div>
+                          <div>
+                            <h2 className="text-xl font-black text-white">{selectedGame.name}</h2>
+                            <p className="text-xs text-slate-400">{selectedGame.category} • {selectedGame.players} • {selectedGame.duration}</p>
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-200 leading-relaxed pt-2">{selectedGame.objective}</p>
+                      </div>
+
+                      <div className="p-6 rounded-3xl border space-y-3" style={cardStyle}>
+                        <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider">Condição de Vitória</h3>
+                        <p className="text-xs text-slate-200">{selectedGame.victoryCondition}</p>
+                      </div>
+
+                      {/* LEMBRETES RÁPIDOS */}
+                      {selectedGame.quickCheatSheet && selectedGame.quickCheatSheet.length > 0 && (
+                        <div className="p-6 rounded-3xl border space-y-3" style={cardStyle}>
+                          <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                            <Icon name="zap" className="w-4 h-4"/> Resumo Rápido
+                          </h3>
+                          <ul className="space-y-2">
+                            {selectedGame.quickCheatSheet.map((item, idx) => (
+                              <li key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                                <Icon name="check" className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                                <span>{item}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="p-6 rounded-3xl border space-y-3" style={cardStyle}>
+                        <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                          <Icon name="shield" className="w-4 h-4" /> Regras da Casa Ativas
+                        </h3>
+                        {(selectedGame.houseRules || []).filter(h => h.active).length > 0 ? (
+                          (selectedGame.houseRules || []).filter(h => h.active).map(hr => (
+                            <div key={hr.id} className="p-3 rounded-xl border text-xs text-amber-200" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }}>
+                              {hr.text}
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-slate-500 italic">Nenhuma regra da casa ativada no momento.</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SETUP & TURNO */}
+                {playerTab === "setup" && selectedGame && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fadeIn">
+                    <div className="p-6 rounded-3xl border space-y-4" style={cardStyle}>
+                      <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-2">
+                        <Icon name="layers" className="w-4 h-4"/> Preparação do Jogo (Setup)
+                      </h3>
+                      <ol className="space-y-3">
+                        {(selectedGame.setup || []).map((step, idx) => (
+                          <li key={idx} className="flex items-start gap-3 text-xs text-slate-300 p-3 rounded-xl border" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }}>
+                            <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-[10px] flex items-center justify-center shrink-0">{idx + 1}</span>
+                            <span className="leading-relaxed">{step}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+
+                    <div className="p-6 rounded-3xl border space-y-4" style={cardStyle}>
+                      <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+                        <Icon name="clock" className="w-4 h-4"/> Estrutura do Turno
+                      </h3>
+                      <div className="space-y-3">
+                        {(selectedGame.turnStructure || []).map((step, idx) => (
+                          <div key={idx} className="p-3 rounded-xl border text-xs text-slate-300" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }}>
+                            {step}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* VÍDEOS */}
+                {playerTab === "videos" && selectedGame && (
+                  <div className="space-y-4 animate-fadeIn">
+                    {(() => {
+                      const vids = selectedGame.youtubeVideos || [];
+                      if (vids.length === 0) {
+                        return (
+                          <div className="p-8 rounded-3xl border text-center space-y-3" style={cardStyle}>
+                            <p className="text-xs text-slate-400">Nenhum vídeo cadastrado para este jogo.</p>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {vids.map((vid, idx) => (
+                            <div key={idx} className="p-4 rounded-3xl border space-y-3" style={cardStyle}>
+                              <h4 className="text-xs font-bold text-white flex items-center gap-2">
+                                <Icon name="video" className="w-4 h-4 text-rose-500" /> {vid.title}
+                              </h4>
+                              <div className="aspect-video w-full rounded-2xl overflow-hidden border border-slate-800 bg-black">
+                                <iframe src={`https://www.youtube.com/embed/${vid.id}`} title={vid.title} className="w-full h-full border-0" allowFullScreen />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* JUIZ IA */}
+                {playerTab === "referee" && (
+                  <div className="p-6 rounded-3xl border space-y-4 max-w-3xl mx-auto animate-fadeIn" style={cardStyle}>
+                    <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: appConfig.customBorderColor }}>
+                      <div className="flex items-center gap-3">
+                        <Icon name="bot" className="w-6 h-6 text-amber-400" />
+                        <div>
+                          <h3 className="text-sm font-bold text-white">{appConfig.aiPersona.name}</h3>
+                          <p className="text-[11px] text-slate-400">{selectedGame.name}</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setIsVoiceEnabled(!isVoiceEnabled)} className="p-2 rounded-xl border text-xs">
+                        <Icon name="volume" className={`w-4 h-4 ${isVoiceEnabled ? "text-amber-400" : "text-slate-500"}`} />
+                      </button>
+                    </div>
+
+                    <div className="h-80 overflow-y-auto space-y-3 p-4 rounded-2xl border" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }}>
+                      {chatMessages.map((msg, i) => (
+                        <div key={i} className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                          <div className={`p-3.5 rounded-2xl text-xs ${msg.role === "user" ? "text-white" : "text-slate-200 border"}`} style={msg.role === "user" ? accentBgStyle : { backgroundColor: appConfig.customCardBgColor, borderColor: appConfig.customBorderColor }}>
+                            {msg.text}
+                          </div>
+                        </div>
+                      ))}
+                      {isAiThinking && <div className="text-xs text-slate-500 italic">Juiz analisando...</div>}
+                      <div ref={chatEndRef} />
+                    </div>
+
+                    <form onSubmit={handleSendMessage} className="flex gap-2">
+                      <button type="button" onClick={startListening} className={`p-3 rounded-xl border text-white ${isListening ? "bg-rose-600" : "bg-slate-800"}`}>
+                        <Icon name="mic" className="w-4 h-4 text-amber-400" />
+                      </button>
+                      <input type="text" placeholder="Dúvida sobre as regras..." value={inputMessage} onChange={(e) => setInputMessage(e.target.value)} className="flex-1 border rounded-xl px-4 py-3 text-xs text-white" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }} />
+                      <button type="submit" disabled={isAiThinking} className="px-5 py-3 rounded-xl text-white font-bold text-xs" style={accentBgStyle}>
+                        <Icon name="send" className="w-3.5 h-3.5" />
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+              </div>
+            )}
+
+            {/* MODO DEV */}
+            {appMode === "dev" && isDevAuthenticated && (
+              <div className="space-y-6">
+                <div className="p-4 rounded-3xl border flex items-center justify-between" style={cardStyle}>
+                  <div className="flex items-center gap-3">
+                    <Icon name="shield" className="w-6 h-6 text-amber-400" />
+                    <div>
+                      <h2 className="text-base font-bold text-white">Painel do Desenvolvedor & Estúdio de Criação</h2>
+                      <p className="text-xs text-slate-400">Cadastre futuros jogos, edite regras e gerencie os temas</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setAppMode("player")} className="px-4 py-2 rounded-xl border text-xs font-bold hover:border-amber-500">
+                    👁️ Ver Como Jogador
+                  </button>
+                </div>
+
+                {/* BARRA DE SUB-ABAS DEV */}
+                <div className="flex items-center gap-2 border-b pb-2 overflow-x-auto" style={{ borderColor: appConfig.customBorderColor }}>
+                  {[
+                    { id: "add_game_manual", label: "➕ Cadastrar Futuro Jogo", icon: "plus" },
+                    { id: "game_editor", label: "📚 Editar Jogos Existentes", icon: "layout" },
+                    { id: "theme_studio", label: "🎨 Studio Visual & Cores", icon: "palette" },
+                    { id: "password_mgr", label: "🔒 Senha", icon: "lock" },
+                    { id: "backup", label: "💾 Backup JSON", icon: "download" },
+                    { id: "github_deploy", label: "🚀 Publicar no GitHub", icon: "github" }
+                  ].map(tab => {
+                    const active = devTab === tab.id;
+                    return (
+                      <button key={tab.id} onClick={() => setDevTab(tab.id)} className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 border shrink-0 ${active ? "border-amber-400 text-amber-400 bg-amber-500/10" : "text-slate-400 border-transparent"}`}>
+                        <Icon name={tab.icon} className="w-4 h-4" /> <span>{tab.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* CADASTRO MANUAL DE NOVO JOGO */}
+                {devTab === "add_game_manual" && (
+                  <div className="p-6 rounded-3xl border space-y-4" style={cardStyle}>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <Icon name="plus" className="w-5 h-5 text-amber-400"/> Cadastrar Novo Jogo na Estante
+                    </h3>
+                    <p className="text-xs text-slate-400">Preencha os campos para adicionar qualquer novo jogo de tabuleiro à biblioteca.</p>
+                    
+                    <form onSubmit={handleCreateManualGame} className="space-y-4 pt-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-300 block mb-1">Nome do Jogo *</label>
+                          <input type="text" required placeholder="Ex: Catan, Dixit..." value={manualForm.name} onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })} className="w-full border rounded-xl p-2.5 text-xs text-white" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }} />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-300 block mb-1">Categoria</label>
+                          <input type="text" placeholder="Ex: Cartas / Estratégia" value={manualForm.category} onChange={(e) => setManualForm({ ...manualForm, category: e.target.value })} className="w-full border rounded-xl p-2.5 text-xs text-white" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }} />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-300 block mb-1">Emoji / Ícone</label>
+                          <input type="text" value={manualForm.icon} onChange={(e) => setManualForm({ ...manualForm, icon: e.target.value })} className="w-full border rounded-xl p-2.5 text-xs text-white text-center" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }} />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-bold text-slate-300 block mb-1">Objetivo do Jogo</label>
+                          <textarea rows={2} placeholder="Descreva o objetivo principal..." value={manualForm.objective} onChange={(e) => setManualForm({ ...manualForm, objective: e.target.value })} className="w-full border rounded-xl p-2.5 text-xs text-white" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }} />
+                        </div>
+                        <div>
+                          <label className="text-xs font-bold text-slate-300 block mb-1">Condição de Vitória</label>
+                          <textarea rows={2} placeholder="Como vence a partida..." value={manualForm.victoryCondition} onChange={(e) => setManualForm({ ...manualForm, victoryCondition: e.target.value })} className="w-full border rounded-xl p-2.5 text-xs text-white" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }} />
+                        </div>
+                      </div>
+
+                      <button type="submit" className="px-6 py-3 rounded-xl text-white font-bold text-xs shadow-lg" style={accentBgStyle}>
+                        Salvar e Publicar Jogo na Estante
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* THEME STUDIO */}
+                {devTab === "theme_studio" && (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="p-6 rounded-3xl border space-y-4" style={cardStyle}>
+                      <h3 className="text-base font-bold text-white flex items-center gap-2">
+                        <Icon name="palette" className="w-5 h-5 text-amber-400" /> Presets Visuais Prontos
+                      </h3>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {Object.entries(THEME_PRESETS).map(([key, p]) => (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              setAppConfig(prev => ({
+                                ...prev,
+                                themePreset: key,
+                                customBgColor: p.bg,
+                                customCardBgColor: p.cardBg,
+                                customBorderColor: p.border,
+                                customTextColor: p.text,
+                                customAccentColor: p.accent
+                              }));
+                              showNotification(`Tema "${p.name}" aplicado!`);
+                            }}
+                            className={`p-3.5 rounded-2xl border text-left transition-all ${appConfig.themePreset === key ? "ring-2 ring-amber-400" : ""}`}
+                            style={{ backgroundColor: p.cardBg, borderColor: p.border, color: p.text }}
+                          >
+                            <span className="text-xs font-bold block mb-1">{p.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* EDITAR JOGOS */}
+                {devTab === "game_editor" && editingGame && (
+                  <div className="space-y-6 animate-fadeIn">
+                    <div className="p-4 rounded-3xl border flex items-center justify-between gap-3" style={cardStyle}>
+                      <div className="flex items-center gap-2 overflow-x-auto flex-1">
+                        {Object.keys(games).map(key => {
+                          const g = games[key];
+                          const isSel = editingGameKey === key;
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => setEditingGameKey(key)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold border shrink-0 flex items-center gap-1.5 ${isSel ? "border-amber-400 text-amber-300 bg-amber-500/10" : "text-slate-400"}`}
+                              style={{ borderColor: appConfig.customBorderColor }}
+                            >
+                              <span>{g.icon || "🎲"}</span>
+                              <span>{g.name}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="p-6 rounded-3xl border space-y-4" style={cardStyle}>
+                      <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: appConfig.customBorderColor }}>
+                        <h4 className="text-sm font-bold text-white">Informações Gerais de {editingGame.name}</h4>
+                        <button
+                          onClick={() => setDeleteModalGameKey(editingGameKey)}
+                          className="px-3 py-1 rounded-xl bg-rose-600/20 text-rose-300 border border-rose-500/30 text-xs font-bold flex items-center gap-1"
+                        >
+                          <Icon name="trash" className="w-3.5 h-3.5" /> Excluir Jogo
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-400 block mb-1">Nome do Jogo</label>
+                          <input type="text" value={editingGame.name || ""} onChange={(e) => setGames({ ...games, [editingGameKey]: { ...editingGame, name: e.target.value } })} className="w-full border rounded-xl p-2.5 text-xs text-white" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }} />
+                        </div>
+                        <div>
+                          <label className="text-[11px] font-bold text-slate-400 block mb-1">Categoria</label>
+                          <input type="text" value={editingGame.category || ""} onChange={(e) => setGames({ ...games, [editingGameKey]: { ...editingGame, category: e.target.value } })} className="w-full border rounded-xl p-2.5 text-xs text-white" style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* SENHA DEV */}
+                {devTab === "password_mgr" && (
+                  <div className="p-6 rounded-3xl border space-y-4 max-w-md animate-fadeIn" style={cardStyle}>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <Icon name="lock" className="w-5 h-5 text-amber-400" /> Alterar Senha Dev
+                    </h3>
+                    <input
+                      type="password"
+                      placeholder="Nova Senha"
+                      value={devPassword}
+                      onChange={(e) => setDevPassword(e.target.value)}
+                      className="w-full border rounded-xl p-3 text-xs text-white"
+                      style={{ backgroundColor: appConfig.customBgColor, borderColor: appConfig.customBorderColor }}
+                    />
+                    <button onClick={() => showNotification("Senha alterada!")} className="px-5 py-2.5 rounded-xl bg-amber-600 text-white font-bold text-xs">
+                      Atualizar Senha
+                    </button>
+                  </div>
+                )}
+
+                {/* BACKUP */}
+                {devTab === "backup" && (
+                  <div className="p-6 rounded-3xl border space-y-4 animate-fadeIn" style={cardStyle}>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <Icon name="download" className="w-5 h-5 text-amber-400" /> Backup JSON
+                    </h3>
+                    <button
+                      onClick={() => {
+                        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({ games, appConfig }));
+                        const anchor = document.createElement('a');
+                        anchor.setAttribute("href", dataStr);
+                        anchor.setAttribute("download", `rulemaster_backup.json`);
+                        document.body.appendChild(anchor);
+                        anchor.click();
+                        anchor.remove();
+                        showNotification("Backup baixado!");
+                      }}
+                      className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center gap-2"
+                    >
+                      <Icon name="download" className="w-4 h-4" /> Exportar Backup
+                    </button>
+                  </div>
+                )}
+
+                {/* GITHUB DEPLOY GUIDE */}
+                {devTab === "github_deploy" && (
+                  <div className="p-6 rounded-3xl border space-y-4 animate-fadeIn" style={cardStyle}>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <Icon name="github" className="w-5 h-5 text-amber-400" /> Passo a Passo para Publicar no GitHub Pages
+                    </h3>
+                    <ol className="space-y-2 text-xs text-slate-300 list-decimal pl-5">
+                      <li>Crie um repositório no GitHub (ex: <code className="text-amber-300">meu-rulemaster</code>).</li>
+                      <li>Suba este arquivo com o nome exato de <code className="text-amber-300">index.html</code> na raiz do repositório.</li>
+                      <li>Vá em <strong>Settings &rarr; Pages</strong> no seu repositório.</li>
+                      <li>Selecione a branch <strong>main</strong> e clique em <strong>Save</strong>.</li>
+                      <li>Acesse o link público gerado pelo GitHub no seu celular!</li>
+                    </ol>
+                  </div>
+                )}
+
+              </div>
+            )}
+          </main>
+
+          <footer className="border-t py-4 text-center text-xs text-slate-500 mt-auto" style={{ borderColor: appConfig.customBorderColor }}>
+            {appConfig.footerText}
+          </footer>
+        </div>
+      );
+    }
+
+    const container = document.getElementById('root');
+    const root = createRoot(container);
+    root.render(<App />);
+  </script>
+
+</body>
+</html>
